@@ -288,3 +288,89 @@ enum EntryType {
     WITHHOLDING
 }
 
+model TaxCalculationSession {
+  id                String   @id @default(cuid())
+  userId            String
+  taxYear           Int      @default(2024)
+  status            TaxCalculationStatus @default(PENDING)
+  totalIncome       Decimal? @db.Decimal(12, 2)
+  totalDeductions   Decimal? @db.Decimal(12, 2)
+  taxableIncome     Decimal? @db.Decimal(12, 2)
+  federalTaxOwed    Decimal? @db.Decimal(12, 2)
+  stateTaxOwed      Decimal? @db.Decimal(12, 2)
+  totalTaxOwed      Decimal? @db.Decimal(12, 2)
+  refundAmount      Decimal? @db.Decimal(12, 2)
+  completionProgress Int     @default(0)
+  estimatedCompletion DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents         TaxDocument[]
+  calculations      TaxCalculationStep[]
+  
+  @@map("tax_calculation_sessions")
+}
+
+model TaxCalculationStep {
+  id          String   @id @default(cuid())
+  sessionId   String
+  stepType    TaxStepType
+  status      StepStatus @default(PENDING)
+  description String
+  amount      Decimal?  @db.Decimal(12, 2)
+  metadata    Json?
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  
+  session     TaxCalculationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  @@map("tax_calculation_steps")
+}
+
+model TaxDocument {
+  id              String   @id @default(cuid())
+  sessionId       String
+  fileName        String
+  fileType        String
+  fileSize        Int
+  azureDocumentId String?
+  processingStatus DocumentProcessingStatus @default(UPLOADED)
+  extractedData   Json?
+  taxRelevantData Json?
+  uploadedAt      DateTime @default(now())
+  processedAt     DateTime?
+  
+  session         TaxCalculationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  @@map("tax_documents")
+}
+
+enum TaxCalculationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  ERROR
+}
+
+enum StepStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  ERROR
+}
+
+enum TaxStepType {
+  DOCUMENT_PROCESSING
+  INCOME_CALCULATION
+  DEDUCTION_CALCULATION
+  TAX_CALCULATION
+  REFUND_CALCULATION
+}
+
+enum DocumentProcessingStatus {
+  UPLOADED
+  PROCESSING
+  PROCESSED
+  ERROR
+}
